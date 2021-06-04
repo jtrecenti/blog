@@ -1,0 +1,153 @@
+---
+title: "A Sociedade Unipessoal substituiu a EIRELI?"
+description: |
+  Neste texto, buscamos estudar o impacto da Lei de Liberdade Econômica (LLE) na abertura de empresas com natureza Sociedade Limitada Unipessoal (SLU).
+author:
+  - name: Julio Trecenti
+    url: https://www.linkedin.com/in/jtrecenti/
+  - name: Marcelo Guedes Nunes
+    url: https://www.linkedin.com/in/marcelo-guedes-nunes-849a4536/
+date: 06-03-2021
+output:
+  distill::distill_article:
+    self_contained: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE
+)
+da_contagens <- readr::read_rds("da_contagens.rds")
+```
+
+Neste texto, buscamos estudar o impacto da Lei de Liberdade Econômica (LLE) na abertura de empresas com natureza Sociedade Limitada Unipessoal (SLU).
+
+A hipótese da pesquisa é que, após a LLE, as pessoas que naturalmente abririam Empresas Individuais de Responsabilidade Limitada (EIRELI), passaram a abrir SLUs.
+
+Para investigar esse fenômeno, analisamos descritivamente a proporção de abertura de EIRELIs com relação ao total, comparando-se com a mesma proporção de SLUs.
+
+## Metodologia
+
+Os dados foram extraídos da base de dados aberta de CNPJ da [Receita Federal do Brasil (RFB)](https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/cadastros/consultas/dados-publicos-cnpj), disponibilizada no dia 08/05/2021. Consideramos apenas empresas consideradas como matriz. Também retiramos empresas de natureza "Candidato a Cargo Político Eletivo" (código 4090).
+
+As SLUs foram identificadas da seguinte forma: a partir da base de sócios, calculamos a quantidade de sócios para cada raiz de CNPJ. Uma empresa é classificada como SLU se a natureza empresarial é Sociedade Limitada de Natureza Empresária (código 2062) e possui apenas um sócio.
+
+## Resultado
+
+```{r contas}
+
+da_plot1 <- da_contagens |>
+  dplyr::filter(natureza_lab != "Político") |> 
+  dplyr::mutate(dt_inicio = lubridate::floor_date(dt_inicio, "week")) |>
+  dplyr::group_by(dt_inicio, natureza_lab) |>
+  dplyr::tally(n) |>
+  dplyr::mutate(prop = n/sum(n)) |>
+  dplyr::ungroup()
+
+da_plot2 <- da_contagens |>
+  dplyr::filter(natureza_lab != "Político") |> 
+  dplyr::mutate(dt_inicio = lubridate::floor_date(dt_inicio, "week")) |>
+  dplyr::group_by(dt_inicio, natureza_lab) |>
+  dplyr::tally(n) |>
+  dplyr::mutate(prop = n/sum(n)) |>
+  dplyr::filter(natureza_lab %in% c("EIRELI", "SLU", "LTDA")) |>
+  dplyr::mutate(Total = sum(prop)) |>
+  dplyr::ungroup() |>
+  dplyr::select(-n) |>
+  tidyr::pivot_wider(names_from = natureza_lab, values_from = prop) |>
+  tidyr::pivot_longer(
+    -c(dt_inicio),
+    names_to = "natureza_lab",
+    values_to = "prop"
+  )
+```
+
+
+A Figura \@ref(fig:todas) mostra a evolução no tempo da proporção de empresas abertas, por natureza jurídica. Importante notar que os eixos de cada gráfico são diferentes, sendo que o objetivo do gráfico é comparar as curvas de crescimento e decrescimento. É possível notar que Sociedades Limitadas com mais de um sócio (LTDA) apresentam um comportamento similar ao das Empresas Individuais (EI), muito provavelmente por conta de impactos da pandemia de Covid-19. Enquanto isso, EIRELIs e outras naturezas apresentam queda constante após a LLE.
+
+```{r todas, fig.cap="Proporção de empresas abertas por natureza jurídica.", fig.width=10, fig.height=5, dpi = 500, layout = "l-body-outset"}
+
+da_eventos <- tibble::tibble(
+  x = as.Date(c("2019-09-20", "2020-02-26")),
+  lab = forcats::as_factor(c("LLE", "Covid-19"))
+)
+
+lvls_order <- c("LTDA", "EIRELI", "SLU", "EI", "Outros")
+da_plot1 |> 
+  dplyr::mutate(natureza_lab = factor(natureza_lab, levels = lvls_order)) |> 
+  ggplot2::ggplot() +
+  ggplot2::aes(dt_inicio, prop) +
+  ggplot2::geom_point(size = .1) +
+  ggplot2::geom_smooth(
+    colour = viridis::viridis(1, 1, .2, .8),
+    method = "loess", formula = y~x
+  ) +
+  ggplot2::facet_wrap(~natureza_lab, scales = "free_y") +
+  ggplot2::scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  ggplot2::geom_vline(
+    ggplot2::aes(xintercept = x, colour = lab), 
+    data = da_eventos,
+    linetype = 2
+  ) +
+  ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  ggplot2::scale_colour_manual(values = c("red", "gray")) +
+  ggplot2::theme_minimal(12) +
+  ggplot2::theme(legend.position = c(.8, .2)) +
+  ggplot2::labs(
+    x = "Data de abertura",
+    y = "Proporção de empresas",
+    colour = "Evento"
+  )
+```
+
+Agora, vamos investigar EIRELIs, LTDAs e SLUs com uma lupa.
+
+A Figura \@ref(fig:slu-eireli) mostra a proporção de empresas abertas por natureza jurídica, comparando as naturezas de interesse no nosso estudo. De fato, a abertura de EIRELIs vem caindo de forma consistente após a LLE, enquanto que as SLU naturalmente aumentaram[^slu]. Já as sociedades limitadas com mais de um sócio sofreram uma queda nos primeiros meses após o início da pandemia de Covid-19, mas voltararam a um paramar estável.
+
+[^slu]: A existência de sociedades limitadas com apenas um sócio antes da LLE pode estar relacionada a algum fator não controlado da base, ou uma inconsistência nos dados da RFB. É necessário realizar mais estudos para compreender esses casos de forma precisa. De qualquer forma, a proporção de casos gira em torno de 1%.
+
+```{r slu-eireli, fig.cap="Proporção de empresas abertas por natureza jurídica, comparando EIRELI e Sociedades Limitadas com apenas um sócio (SLU).", fig.width=10, fig.height=5, dpi = 500,layout = "l-body-outset"}
+
+da_plot2 |>
+  dplyr::filter(natureza_lab %in% c("EIRELI", "SLU", "LTDA")) |>
+  ggplot2::ggplot() +
+  ggplot2::aes(x = dt_inicio, y = prop, colour = natureza_lab) +
+  ggplot2::geom_smooth(
+    method = "loess", span = .4, formula = y~x,
+    fill = "#d8d8ef"
+  ) +
+  ggplot2::geom_point(alpha = .5, size = 1) +
+  ggplot2::geom_vline(xintercept = as.Date("2019-09-20"), colour = 2, linetype = 2) +
+  ggplot2::geom_vline(xintercept = as.Date("2020-02-26"), colour = "gray", linetype = 2) +
+  ggplot2::scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1),
+    breaks = 0:10/100
+  ) +
+  ggplot2::scale_colour_viridis_d(begin = .2, end = .8) +
+  ggplot2::scale_x_date(
+    date_breaks = "3 month",
+    date_labels = "%Y-%m",
+    limits = as.Date(c("2018-12-01", "2021-06-01"))
+  ) +
+  ggplot2::theme_minimal(12) +
+  ggplot2::annotate(
+    "text", x = as.Date("2019-09-20"), y = .09, label = "LLE",
+    colour = "red", hjust = -.3
+  ) +
+  ggplot2::annotate(
+    "text", x = as.Date("2020-02-26"), y = .09, 
+    label = "Primeiro caso\n Covid-19",
+    colour = "gray", hjust = -.1, size = 3
+  ) +
+  ggplot2::labs(
+    x = "Data de início da atividade",
+    y = "Proporção de empresas abertas",
+    colour = "Natureza\njurídica"
+  )
+
+```
+
+Os dados levantados mostram, pelo menos descritivamente, que de fato houve uma troca na escolha da natureza empresarial no momento de abrir uma empresa. A pergunta que fica em aberto é em qual percentual essas quentidades irão se estabilizar.
