@@ -150,4 +150,4 @@ da_plot2 |>
 
 ```
 
-Os dados levantados mostram, pelo menos descritivamente, que de fato houve uma troca na escolha da natureza empresarial no momento de abrir uma empresa. A pergunta que fica em aberto é em qual percentual essas quentidades irão se estabilizar.
+Os dados levantados mostram, pelo menos descritivamente, que de fato houve uma troca na escolha da natureza empresarial no momento de abrir uma empresa. A pergunta que fica em aberto é em qual percentual essas quantidades irão se estabilizar.
